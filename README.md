@@ -20,12 +20,12 @@ This setup enforces:
 2. Create secret files (Discord token, gateway token, Discord IDs):
 
 ```bash
-./scripts/init-secrets.sh
+./scripts/setup/init-secrets.sh
 ```
 ## 2) Validate config
 
 ```bash
-./scripts/check-config.sh
+./scripts/security/check-config.sh
 ```
 
 ## 3) Start
@@ -86,7 +86,7 @@ The bot ignores messages without `@Claw` and blocks non-allowlisted users.
 Apply outbound allowlist for this container on host:
 
 ```bash
-sudo CONTAINER_NAME=openclaw-secure ./scripts/egress-allowlist.sh
+sudo CONTAINER_NAME=openclaw-secure ./scripts/security/egress-allowlist.sh
 ```
 
 Current script policy:
@@ -99,7 +99,7 @@ Current script policy:
 
 - `docker-compose.yml`: hardened runtime + Docker secret mount
 - `config/openclaw.json`: Discord/channel/user/mention policy + Codex provider
-- `scripts/entrypoint-with-secrets.sh`: loads secret files into runtime env
-- `scripts/init-secrets.sh`: creates `secrets/discord_bot_token.txt`, `secrets/gateway_token.txt`, `secrets/discord_guild_id.txt`, `secrets/discord_channel_ids.txt`, `secrets/discord_user_ids.txt`
-- `scripts/check-config.sh`: policy drift checks
-- `scripts/egress-allowlist.sh`: host-side outbound firewall allowlist for the container
+- `scripts/bootstrap/entrypoint-with-secrets.sh`: loads secret files into runtime env
+- `scripts/setup/init-secrets.sh`: creates `secrets/discord_bot_token.txt`, `secrets/gateway_token.txt`, `secrets/discord_guild_id.txt`, `secrets/discord_channel_ids.txt`, `secrets/discord_user_ids.txt`
+- `scripts/security/check-config.sh`: policy drift checks
+- `scripts/security/egress-allowlist.sh`: host-side outbound firewall allowlist for the container

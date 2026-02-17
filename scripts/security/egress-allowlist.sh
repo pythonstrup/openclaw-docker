@@ -11,7 +11,7 @@ set -eu
 # - drop everything else
 #
 # Usage:
-#   sudo CONTAINER_NAME=openclaw-secure ./scripts/egress-allowlist.sh
+#   sudo CONTAINER_NAME=openclaw-secure ./scripts/security/egress-allowlist.sh
 
 CONTAINER_NAME="${CONTAINER_NAME:-openclaw-secure}"
 CHAIN="${CHAIN:-OPENCLAW_EGRESS}"

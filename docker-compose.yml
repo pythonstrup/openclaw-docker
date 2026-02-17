@@ -3,7 +3,7 @@ services:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
     container_name: openclaw-secure
     command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
-    entrypoint: ["/usr/local/bin/entrypoint-with-secrets.sh"]
+    entrypoint: ["/opt/openclaw/scripts/bootstrap/entrypoint-with-secrets.sh"]
 
     ports:
       - "127.0.0.1:${OPENCLAW_PORT:-3010}:3010"
@@ -23,7 +23,7 @@ services:
 
     stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      test: ["CMD", "/opt/openclaw/scripts/health/healthcheck.sh"]
       interval: 30s
       timeout: 12s
       retries: 3
@@ -40,12 +40,8 @@ services:
         target: /opt/openclaw/config
         read_only: true
       - type: bind
-        source: ./scripts/entrypoint-with-secrets.sh
-        target: /usr/local/bin/entrypoint-with-secrets.sh
-        read_only: true
-      - type: bind
-        source: ./scripts/healthcheck.sh
-        target: /usr/local/bin/healthcheck.sh
+        source: ./scripts
+        target: /opt/openclaw/scripts
         read_only: true
       - type: bind
         source: ${HOME}/.codex/auth.json

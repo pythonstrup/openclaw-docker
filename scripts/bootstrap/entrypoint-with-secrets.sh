@@ -321,4 +321,10 @@ NODE
 
 enforce_runtime_config
 
+# Auto-approve *self* pairing in the background (TS script is bind-mounted).
+# This avoids a bootstrap deadlock when the gateway requires pairing.
+if [ -r /opt/openclaw/scripts/bootstrap/auto-approve-self-pairing.ts ]; then
+  node --experimental-strip-types /opt/openclaw/scripts/bootstrap/auto-approve-self-pairing.ts >/dev/stderr 2>&1 || true &
+fi
+
 exec "$@"
