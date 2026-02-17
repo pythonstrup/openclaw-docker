@@ -102,6 +102,11 @@ if ! grep -q 'healthcheck:' "$COMPOSE"; then
   exit 1
 fi
 
+if ! grep -q 'healthcheck.sh' "$COMPOSE"; then
+  echo "compose must use healthcheck.sh script" >&2
+  exit 1
+fi
+
 if grep -q 'DISCORD_BOT_TOKEN:' "$COMPOSE"; then
   echo "plain DISCORD_BOT_TOKEN env detected in compose" >&2
   exit 1
@@ -109,6 +114,11 @@ fi
 
 if grep -q 'OPENCLAW_GATEWAY_TOKEN:' "$COMPOSE"; then
   echo "plain OPENCLAW_GATEWAY_TOKEN env detected in compose" >&2
+  exit 1
+fi
+
+if grep -q 'export DISCORD_BOT_TOKEN=' "$COMPOSE" || grep -q 'export OPENCLAW_GATEWAY_TOKEN=' "$COMPOSE"; then
+  echo "healthcheck must not export secrets into environment; check secret files with [ -r ] instead" >&2
   exit 1
 fi
 

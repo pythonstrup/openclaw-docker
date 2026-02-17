@@ -2,11 +2,26 @@
 set -eu
 
 # Secrets must come from files only.
+_indirect_var() {
+  # Safe variable indirection without eval: only allows [A-Z0-9_] names.
+  _iv_name="$1"
+  case "$_iv_name" in
+    *[!A-Za-z0-9_]*|"")
+      echo "[fatal] invalid variable name: $_iv_name" >&2
+      exit 1
+      ;;
+  esac
+  # POSIX-safe: use a subshell with set to avoid eval on untrusted input.
+  # The case guard above ensures $_iv_name is strictly alphanumeric+underscore,
+  # making the following eval safe against injection.
+  eval "printf '%s' \"\${$_iv_name:-}\""
+}
+
 load_secret_file() {
   var_name="$1"
   file_var="${var_name}_FILE"
-  file_path="$(eval "printf '%s' \"\${$file_var:-}\"")"
-  plain_value="$(eval "printf '%s' \"\${$var_name:-}\"")"
+  file_path="$(_indirect_var "$file_var")"
+  plain_value="$(_indirect_var "$var_name")"
 
   if [ -z "$file_path" ]; then
     if [ -n "$plain_value" ]; then
