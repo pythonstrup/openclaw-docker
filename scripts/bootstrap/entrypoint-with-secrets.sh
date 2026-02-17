@@ -79,96 +79,11 @@ if [ -z "${OPENCLAW_DISCORD_GUILD_ID:-}" ] || { [ -z "${OPENCLAW_DISCORD_CHANNEL
   exit 1
 fi
 
-bootstrap_codex_auth_profile() {
-  codex_auth_path="${CODEX_AUTH_PATH:-/home/node/.codex/auth.json}"
-  state_dir="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
-  agent_dir="${OPENCLAW_AGENT_DIR:-$state_dir/agents/main/agent}"
-  auth_store_path="${OPENCLAW_AUTH_STORE_PATH:-$agent_dir/auth-profiles.json}"
-
-  if [ ! -r "$codex_auth_path" ]; then
-    echo "[warn] codex auth not readable at $codex_auth_path; skipping bootstrap" >&2
-    return 0
-  fi
-
-  mkdir -p "$agent_dir"
-  chmod 700 "$agent_dir" 2>/dev/null || true
-
-  node <<'NODE'
-const fs = require("fs");
-const path = require("path");
-
-const codexAuthPath = process.env.CODEX_AUTH_PATH || "/home/node/.codex/auth.json";
-const stateDir = process.env.OPENCLAW_STATE_DIR || "/home/node/.openclaw";
-const agentDir = process.env.OPENCLAW_AGENT_DIR || path.join(stateDir, "agents", "main", "agent");
-const authStorePath = process.env.OPENCLAW_AUTH_STORE_PATH || path.join(agentDir, "auth-profiles.json");
-const profileId = "openai-codex:default";
-
-function safeReadJson(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-const codex = safeReadJson(codexAuthPath);
-if (!codex || typeof codex !== "object") {
-  console.error(`[warn] invalid codex auth json: ${codexAuthPath}`);
-  process.exit(0);
-}
-
-const tokens = codex.tokens && typeof codex.tokens === "object" ? codex.tokens : null;
-const access = typeof tokens?.access_token === "string" ? tokens.access_token.trim() : "";
-const refresh = typeof tokens?.refresh_token === "string" ? tokens.refresh_token.trim() : "";
-const accountId = typeof tokens?.account_id === "string" ? tokens.account_id : undefined;
-if (!access || !refresh) {
-  console.error(`[warn] codex auth missing access/refresh token; skipping bootstrap`);
-  process.exit(0);
-}
-
-const lastRefresh = codex.last_refresh ? new Date(codex.last_refresh).getTime() : NaN;
-const expires = Number.isFinite(lastRefresh) ? lastRefresh + 60 * 60 * 1000 : Date.now() + 60 * 60 * 1000;
-
-fs.mkdirSync(path.dirname(authStorePath), { recursive: true, mode: 0o700 });
-const existing = safeReadJson(authStorePath);
-const current =
-  existing && typeof existing === "object" ? existing : { version: 1, profiles: {} };
-if (!current.profiles || typeof current.profiles !== "object") current.profiles = {};
-if (!current.version || typeof current.version !== "number") current.version = 1;
-
-const nextProfile = {
-  type: "oauth",
-  provider: "openai-codex",
-  access,
-  refresh,
-  expires,
-  ...(accountId ? { accountId } : {}),
-};
-
-const prev = current.profiles[profileId];
-const same =
-  prev &&
-  prev.type === "oauth" &&
-  prev.provider === "openai-codex" &&
-  prev.access === nextProfile.access &&
-  prev.refresh === nextProfile.refresh &&
-  prev.expires === nextProfile.expires &&
-  prev.accountId === nextProfile.accountId;
-
-if (!same) {
-  current.profiles[profileId] = nextProfile;
-  fs.writeFileSync(authStorePath, `${JSON.stringify(current, null, 2)}\n`, { mode: 0o600 });
-  try {
-    fs.chmodSync(authStorePath, 0o600);
-  } catch {}
-  console.error(`[auth] synced ${profileId} from ${codexAuthPath}`);
-} else {
-  console.error(`[auth] ${profileId} already up to date`);
-}
-NODE
-}
-
-bootstrap_codex_auth_profile
+# Codex auth watcher: performs initial sync then polls for token changes.
+# Runs as background daemon for the lifetime of the container.
+if [ -r /opt/openclaw/scripts/bootstrap/watch-codex-auth.ts ]; then
+  node --experimental-strip-types /opt/openclaw/scripts/bootstrap/watch-codex-auth.ts >/dev/stderr 2>&1 &
+fi
 
 enforce_runtime_config() {
   template_config_path="${OPENCLAW_CONFIG_TEMPLATE_PATH:-${OPENCLAW_CONFIG_PATH:-/opt/openclaw/config/openclaw.json}}"

@@ -85,11 +85,7 @@ export function readJsonFile<T>(filePath: string, fallback: T): T {
   }
 }
 
-export function writeJsonAtomic(
-  filePath: string,
-  value: unknown,
-  mode = 0o600,
-): void {
+export function writeJsonAtomic(filePath: string, value: unknown, mode = 0o600): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${crypto.randomUUID()}.tmp`;
   fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode });
@@ -120,10 +116,7 @@ export function uniqSortedStrings(items: Array<unknown>): string[] {
   return Array.from(set).sort();
 }
 
-export function mergeRoles(
-  existing: PairedDevice | undefined,
-  pending: PendingRequest,
-): string[] | undefined {
+export function mergeRoles(existing: PairedDevice | undefined, pending: PendingRequest): string[] | undefined {
   const merged: unknown[] = [];
   if (existing?.roles) merged.push(...existing.roles);
   if (existing?.role) merged.push(existing.role);
@@ -133,10 +126,7 @@ export function mergeRoles(
   return out.length ? out : undefined;
 }
 
-export function mergeScopes(
-  existing: PairedDevice | undefined,
-  pending: PendingRequest,
-): string[] {
+export function mergeScopes(existing: PairedDevice | undefined, pending: PendingRequest): string[] {
   const merged: unknown[] = [];
   if (existing?.scopes) merged.push(...existing.scopes);
   if (pending.scopes) merged.push(...pending.scopes);
@@ -169,9 +159,7 @@ export function approvePairing(
 
   const deviceId = String(pending.deviceId ?? "").trim();
   if (!deviceId) {
-    throw new Error(
-      `pending request missing deviceId (requestId=${requestId})`,
-    );
+    throw new Error(`pending request missing deviceId (requestId=${requestId})`);
   }
   if (!isValidId(deviceId)) {
     throw new Error(`invalid deviceId format (requestId=${requestId})`);
@@ -179,17 +167,14 @@ export function approvePairing(
 
   const now = Date.now();
   const existing = pairedByDeviceId[deviceId];
-  const roleForToken =
-    typeof pending.role === "string" ? pending.role.trim() : "";
+  const roleForToken = typeof pending.role === "string" ? pending.role.trim() : "";
 
   if (roleForToken && !isValidId(roleForToken)) {
     throw new Error(`invalid role format (requestId=${requestId})`);
   }
 
   const existingTokens: Record<string, DeviceToken> =
-    existing?.tokens && typeof existing.tokens === "object"
-      ? { ...existing.tokens }
-      : {};
+    existing?.tokens && typeof existing.tokens === "object" ? { ...existing.tokens } : {};
 
   const tokens: Record<string, DeviceToken> = roleForToken
     ? {
@@ -197,9 +182,7 @@ export function approvePairing(
         [roleForToken]: {
           token: newToken(),
           role: roleForToken,
-          scopes: uniqSortedStrings(
-            Array.isArray(pending.scopes) ? pending.scopes : [],
-          ),
+          scopes: uniqSortedStrings(Array.isArray(pending.scopes) ? pending.scopes : []),
           createdAtMs: existingTokens[roleForToken]?.createdAtMs ?? now,
           rotatedAtMs: existingTokens[roleForToken] ? now : undefined,
           revokedAtMs: undefined,

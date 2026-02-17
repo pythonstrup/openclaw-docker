@@ -24,7 +24,7 @@ import {
   type PendingRequest,
   readJsonFile,
   writeJsonAtomic,
-} from "@lib/device-pairing.ts";
+} from "../lib/device-pairing.ts";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
