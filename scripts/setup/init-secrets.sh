@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-BASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+BASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 SECRETS_DIR="$BASE_DIR/secrets"
 DISCORD_TOKEN_FILE="$SECRETS_DIR/discord_bot_token.txt"
 GATEWAY_TOKEN_FILE="$SECRETS_DIR/gateway_token.txt"

@@ -17,108 +17,20 @@
  *   node --experimental-strip-types /usr/local/bin/auto-approve-self-pairing.ts
  */
 
-import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-
-type PendingRequest = {
-  requestId: string;
-  deviceId: string;
-  publicKey?: string;
-  displayName?: string;
-  platform?: string;
-  clientId?: string;
-  clientMode?: string;
-  role?: string;
-  roles?: string[];
-  scopes?: string[];
-  remoteIp?: string;
-  silent?: boolean;
-  isRepair?: boolean;
-  ts: number;
-};
-
-type DeviceToken = {
-  token: string;
-  role: string;
-  scopes: string[];
-  createdAtMs: number;
-  rotatedAtMs?: number;
-  revokedAtMs?: number;
-  lastUsedAtMs?: number;
-};
-
-type PairedDevice = {
-  deviceId: string;
-  publicKey?: string;
-  displayName?: string;
-  platform?: string;
-  clientId?: string;
-  clientMode?: string;
-  role?: string;
-  roles?: string[];
-  scopes?: string[];
-  remoteIp?: string;
-  tokens?: Record<string, DeviceToken>;
-  createdAtMs: number;
-  approvedAtMs: number;
-};
-
-function readJsonFile<T>(filePath: string, fallback: T): T {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJsonAtomic(filePath: string, value: unknown, mode = 0o600): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.${crypto.randomUUID()}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode });
-  try {
-    fs.chmodSync(tmp, mode);
-  } catch {}
-  fs.renameSync(tmp, filePath);
-  try {
-    fs.chmodSync(filePath, mode);
-  } catch {}
-}
-
-function uniqSortedStrings(items: Array<unknown>): string[] {
-  const set = new Set<string>();
-  for (const v of items) {
-    if (typeof v !== "string") continue;
-    const t = v.trim();
-    if (t) set.add(t);
-  }
-  return Array.from(set).sort();
-}
-
-function mergeRoles(existing: PairedDevice | undefined, pending: PendingRequest): string[] | undefined {
-  const merged: unknown[] = [];
-  if (existing?.roles) merged.push(...existing.roles);
-  if (existing?.role) merged.push(existing.role);
-  if (pending.roles) merged.push(...pending.roles);
-  if (pending.role) merged.push(pending.role);
-  const out = uniqSortedStrings(merged);
-  return out.length ? out : undefined;
-}
-
-function mergeScopes(existing: PairedDevice | undefined, pending: PendingRequest): string[] {
-  const merged: unknown[] = [];
-  if (existing?.scopes) merged.push(...existing.scopes);
-  if (pending.scopes) merged.push(...pending.scopes);
-  return uniqSortedStrings(merged);
-}
-
-function newToken(): string {
-  return crypto.randomBytes(32).toString("base64url");
-}
+import {
+  approvePairing,
+  type PairedDevice,
+  type PendingRequest,
+  readJsonFile,
+  writeJsonAtomic,
+} from "@lib/device-pairing.ts";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const PAIRING_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 async function main(): Promise<void> {
   const stateDir = (process.env.OPENCLAW_STATE_DIR || "/home/node/.openclaw").trim();
@@ -133,7 +45,7 @@ async function main(): Promise<void> {
   const selfDeviceId = typeof identity?.deviceId === "string" ? identity.deviceId.trim() : "";
   if (!selfDeviceId) return;
 
-  const endAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+  const endAt = Date.now() + PAIRING_TIMEOUT_MS;
 
   while (Date.now() < endAt) {
     const pairedByDeviceId = readJsonFile<Record<string, PairedDevice>>(pairedPath, {});
@@ -155,47 +67,10 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const now = Date.now();
-    const existing = pairedByDeviceId[selfDeviceId];
-    const roleForToken = typeof pending.role === "string" ? pending.role.trim() : "";
+    const { updatedPendingById, updatedPairedByDeviceId } = approvePairing(pendingById, pairedByDeviceId, requestId);
 
-    const tokens: Record<string, DeviceToken> =
-      existing?.tokens && typeof existing.tokens === "object" ? { ...existing.tokens } : {};
-
-    if (roleForToken) {
-      const existingToken = tokens[roleForToken];
-      tokens[roleForToken] = {
-        token: newToken(),
-        role: roleForToken,
-        scopes: uniqSortedStrings(Array.isArray(pending.scopes) ? pending.scopes : []),
-        createdAtMs: existingToken?.createdAtMs ?? now,
-        rotatedAtMs: existingToken ? now : undefined,
-        revokedAtMs: undefined,
-        lastUsedAtMs: existingToken?.lastUsedAtMs,
-      };
-    }
-
-    const device: PairedDevice = {
-      deviceId: selfDeviceId,
-      publicKey: pending.publicKey,
-      displayName: pending.displayName,
-      platform: pending.platform,
-      clientId: pending.clientId,
-      clientMode: pending.clientMode,
-      role: pending.role,
-      roles: mergeRoles(existing, pending),
-      scopes: mergeScopes(existing, pending),
-      remoteIp: pending.remoteIp,
-      tokens,
-      createdAtMs: existing?.createdAtMs ?? now,
-      approvedAtMs: now,
-    };
-
-    delete pendingById[requestId];
-    pairedByDeviceId[selfDeviceId] = device;
-
-    writeJsonAtomic(pendingPath, pendingById);
-    writeJsonAtomic(pairedPath, pairedByDeviceId);
+    writeJsonAtomic(pendingPath, updatedPendingById);
+    writeJsonAtomic(pairedPath, updatedPairedByDeviceId);
 
     console.error(`[pairing] auto-approved self deviceId=${selfDeviceId} requestId=${requestId}`);
     return;
@@ -204,6 +79,5 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   console.error(`[pairing] auto-approve failed: ${String(err)}`);
-  process.exitCode = 0;
+  process.exitCode = 1;
 });
-
