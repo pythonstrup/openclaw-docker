@@ -1,0 +1,77 @@
+{
+  "$schema": "https://docs.openclaw.ai/schema/openclaw.json",
+  "meta": {
+    "lastTouchedVersion": "2026.2.16",
+    "lastTouchedAt": "2026-02-16T16:22:14.901Z"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openai-codex/gpt-5.3-codex"
+      },
+      "compaction": {
+        "mode": "safeguard"
+      }
+    }
+  },
+  "tools": {
+    "exec": {
+      "security": "allowlist",
+      "ask": "off",
+      "safeBins": [
+        "ls",
+        "cat",
+        "rg",
+        "sed",
+        "awk",
+        "head",
+        "tail",
+        "wc",
+        "git"
+      ]
+    },
+    "fs": {
+      "workspaceOnly": true
+    },
+    "deny": []
+  },
+  "messages": {
+    "groupChat": {
+      "mentionPatterns": [
+        "\\b@?claw\\b"
+      ]
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "${DISCORD_BOT_TOKEN}",
+      "allowBots": false,
+      "groupPolicy": "allowlist",
+      "dm": {
+        "enabled": false
+      },
+      "guilds": {}
+    }
+  },
+  "gateway": {
+    "port": 3010,
+    "mode": "local",
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    }
+  },
+  "plugins": {
+    "entries": {
+      "discord": {
+        "enabled": true
+      }
+    }
+  }
+}

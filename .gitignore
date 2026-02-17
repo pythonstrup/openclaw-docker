@@ -1,0 +1,22 @@
+# IDE / local metadata
+.idea/
+.DS_Store
+
+# Runtime state (re-created by container)
+workspace/*
+!workspace/.gitkeep
+
+# Secrets and local env
+secrets/*
+!secrets/.gitkeep
+*.env
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# Local logs / backups
+*.log
+config/*.bak
+config/*.bak.*
